@@ -14,12 +14,12 @@ func (p Human) name() string {
 	return p.humanName
 }
 
-func (p Human) move(moveNumber int, hand []*Tile, train []*Tile, pileSize int) Move {
-	left := -1
-	right := -1
+func (p Human) move(moveNumber uint16, hand []Tile, train []Tile, pileSize int) Move {
+	var left int16 = -1
+	var right int16 = -1
 	if len(train) > 0 {
-		left = train[0].leftPips
-		right = train[len(train)-1].rightPips
+		left = int16(train[0].leftPips)
+		right = int16(train[len(train)-1].rightPips)
 	}
 	fmt.Printf("========= Move %d\n", moveNumber)
 	fmt.Printf("=== Pile size: %d\n", pileSize)
@@ -61,27 +61,27 @@ func (p Human) selectToPick(pileSize int) int {
 	return tileNumber
 }
 
-func (p Human) onHandGrown(hand []*Tile, newTile *Tile) {
+func (p Human) onHandGrown(hand []Tile, newTile Tile) {
 	fmt.Printf("You picked a tile :%v.\nYour new hand is: %v\n", newTile, hand)
 }
 
-func (p Human) onOpponentMoved(move *Move, train []*Tile) {
+func (p Human) onOpponentMoved(move Move, train []Tile) {
 }
 
 func (p Human) onOpponentHandGrown() {
 	log.Printf("Opponent took one more tile")
 }
 
-func (p Human) onVictory(looserScore int, playerScore int) {
+func (p Human) onVictory(looserScore uint16, playerScore uint16) {
 }
 
-func (p Human) onLoss(winnerScore int, playerScore int) {
+func (p Human) onLoss(winnerScore uint16, playerScore uint16) {
 }
 
-func (p Human) onDraw(drawScore int) {
+func (p Human) onDraw(drawScore uint16) {
 }
 
-func prettyTrainStr(train []*Tile) string {
+func prettyTrainStr(train []Tile) string {
 	tileStrings := make([]string, 0, len(train))
 	for i := 0; i < len(train); i++ {
 		tileStrings = append(tileStrings, fmt.Sprintf("%v", train[i]))
@@ -89,7 +89,7 @@ func prettyTrainStr(train []*Tile) string {
 	return strings.Join(tileStrings, "")
 }
 
-func prettyHandStr(hand []*Tile, allowedLeft int, allowedRight int) string {
+func prettyHandStr(hand []Tile, allowedLeft int16, allowedRight int16) string {
 	tileStrings := make([]string, 0, len(hand))
 	unbound := allowedLeft < 0 || allowedRight < 0
 	for i := 0; i < len(hand); i++ {
@@ -100,12 +100,13 @@ func prettyHandStr(hand []*Tile, allowedLeft int, allowedRight int) string {
 		if unbound {
 			leftMarker = "*"
 			rightMarker = "*"
-		}
-		if tile.hasPips(allowedLeft) {
-			leftMarker = "*"
-		}
-		if tile.hasPips(allowedRight) {
-			rightMarker = "*"
+		} else {
+			if tile.hasPips(byte(allowedLeft)) {
+				leftMarker = "*"
+			}
+			if tile.hasPips(byte(allowedRight)) {
+				rightMarker = "*"
+			}
 		}
 		tileStrings = append(tileStrings, fmt.Sprintf("%v%c%v:%v", leftMarker, tileRef, rightMarker, hand[i]))
 	}

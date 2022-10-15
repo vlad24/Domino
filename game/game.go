@@ -3,13 +3,14 @@ package game
 import (
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"time"
 )
 
 const maxPips = 6
 
-func play(players map[int]Player, state *State) {
+func play(players map[byte]Player, state State) {
 	for !state.isTerminalForGame() {
 		playerNum := state.activePlayer
 		opponentNum := opponent(playerNum)
@@ -19,13 +20,12 @@ func play(players map[int]Player, state *State) {
 		if !state.isTerminalForPlayer(playerNum) {
 			move := player.move(state.moveCount+1, state.hands[playerNum], state.train, len(state.pile))
 			log.Printf("%v moves: %v", player.name(), &move)
-			if err := validate(playerNum, state, &move); err != nil {
+			if err := validate(playerNum, state, move); err != nil {
 				log.Println(fmt.Errorf("%v makes invalid move: %v", player.name(), err))
-				time.Sleep(time.Second)
 				continue
 			}
 			state.shrinkHand(playerNum, move.tile)
-			opponent.onOpponentMoved(&move, state.train)
+			opponent.onOpponentMoved(move, state.train)
 			if move.appendRight {
 				state.growTrainRight(move.tile)
 			} else {
@@ -61,19 +61,19 @@ func play(players map[int]Player, state *State) {
 	}
 }
 
-func newGame(player1 Player, player2 Player) *State {
+func newGame(player1 Player, player2 Player) State {
 	seed := time.Now().UnixNano()
-	// seed = 1665689122368048351
+	// seed = 1665853188102626733
 	log.Printf("Game seed: %v\n", seed)
 	rand.Seed(seed)
-	tileIndex := make(map[int]*Tile)
-	tiles := make([]*Tile, 0)
+	tileIndex := make(map[int]Tile)
+	tiles := make([]Tile, 0)
 	serialId := 0
 	for i := 0; i <= maxPips; i++ {
 		for j := i; j <= maxPips; j++ {
-			tile := Tile{i, j}
-			tiles = append(tiles, &tile)
-			tileIndex[serialId] = &tile
+			tile := Tile{byte(i), byte(j)}
+			tiles = append(tiles, tile)
+			tileIndex[serialId] = tile
 			serialId++
 		}
 	}
@@ -81,14 +81,14 @@ func newGame(player1 Player, player2 Player) *State {
 	rand.Shuffle(tilesAmount, func(i, j int) {
 		tiles[i], tiles[j] = tiles[j], tiles[i]
 	})
-	hands := make(map[int][]*Tile, 2)
+	hands := make(map[byte][]Tile, 2)
 	permutation := rand.Perm(tilesAmount)
 	const handSize = maxPips + 1
-	hands[1] = make([]*Tile, 0, handSize)
+	hands[1] = make([]Tile, 0, handSize)
 	for _, id := range permutation[:handSize] {
 		hands[1] = append(hands[1], tileIndex[id])
 	}
-	hands[2] = make([]*Tile, 0, handSize)
+	hands[2] = make([]Tile, 0, handSize)
 	for _, id := range permutation[handSize : 2*handSize] {
 		hands[2] = append(hands[2], tileIndex[id])
 	}
@@ -96,16 +96,16 @@ func newGame(player1 Player, player2 Player) *State {
 	return InitialState(tiles, hands, firstToMove)
 }
 
-func opponent(playerNumber int) int {
+func opponent(playerNumber byte) byte {
 	return 1 + (playerNumber % 2)
 }
 
-func firstToMove(hands map[int][]*Tile) int {
-	findSmallestDoublet := func(hand []*Tile) int {
-		minDoubletEnd := maxPips + 1
+func firstToMove(hands map[byte][]Tile) byte {
+	findSmallestDoublet := func(hand []Tile) int16 {
+		var minDoubletEnd int16 = maxPips + 1
 		for _, tile := range hand {
-			if tile.isDoublet() && tile.leftPips < minDoubletEnd {
-				minDoubletEnd = tile.leftPips
+			if tile.isDoublet() && int16(tile.leftPips) < minDoubletEnd {
+				minDoubletEnd = int16(tile.leftPips)
 			}
 		}
 		if minDoubletEnd > maxPips {
@@ -120,11 +120,11 @@ func firstToMove(hands map[int][]*Tile) int {
 	} else if minDoubletPips1 == 2 || (minDoubletPips2 >= 0 && minDoubletPips2 < minDoubletPips1) {
 		return 2
 	} else {
-		return 1 + rand.Intn(2)
+		return 1 + byte(rand.Intn(2))
 	}
 }
 
-func validate(playerNumber int, state *State, move *Move) (err error) {
+func validate(playerNumber byte, state State, move Move) (err error) {
 	if !state.hasTile(playerNumber, move.tile) {
 		return fmt.Errorf("player %v doesn't have tile %v", playerNumber, move.tile)
 	}
@@ -140,14 +140,14 @@ func validate(playerNumber int, state *State, move *Move) (err error) {
 	return nil
 }
 
-func conclude(state *State) (winner int, winnerScore int, looserScore int) {
-	computeFinalTilesScore := func(tiles []*Tile) int {
+func conclude(state State) (winner byte, winnerScore uint16, looserScore uint16) {
+	computeFinalTilesScore := func(tiles []Tile) uint16 {
 		if len(tiles) == 1 && tiles[0].isDoublet() && tiles[0].leftPips == 0 {
 			return 25
 		}
-		sum := 0
+		var sum uint16
 		for _, tile := range tiles {
-			sum += (tile.leftPips + tile.rightPips)
+			sum += uint16(tile.leftPips + tile.rightPips)
 		}
 		return sum
 	}
@@ -159,14 +159,14 @@ func conclude(state *State) (winner int, winnerScore int, looserScore int) {
 		return 2, score2, score1
 	} else {
 		log.Printf("Draw! Both players have %d points", score1)
-		return -1, score1, score2
+		return math.MaxInt8, score1, score2
 	}
 }
 
 func PlayAgainstComputer(playerName string) {
 	human := Human{playerName}
 	computer := Computer{}
-	players := map[int]Player{1: human, 2: computer}
+	players := map[byte]Player{1: human, 2: computer}
 	state := newGame(computer, human)
 	play(players, state)
 }

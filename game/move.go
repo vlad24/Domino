@@ -5,11 +5,11 @@ import (
 )
 
 type Move struct {
-	tile        *Tile
+	tile        Tile
 	appendRight bool
 }
 
-func (m *Move) String() string {
+func (m Move) String() string {
 	if m.appendRight {
 		return fmt.Sprintf("<-%v", m.tile)
 	} else {

@@ -1,10 +1,13 @@
 package game
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 type Tile struct {
-	leftPips  int
-	rightPips int
+	leftPips  byte
+	rightPips byte
 }
 
 func (t Tile) id() string {
@@ -20,28 +23,28 @@ func (t Tile) isDoublet() bool {
 	return t.leftPips == t.rightPips
 }
 
-func (t Tile) hasPips(pips int) bool {
+func (t Tile) hasPips(pips byte) bool {
 	return t.leftPips == pips || t.rightPips == pips
 }
 
-func (t Tile) pipsOtherThan(pips int) int {
+func (t Tile) pipsOtherThan(pips byte) byte {
 	if t.leftPips == pips {
 		return t.rightPips
 	} else if t.rightPips == pips {
 		return t.leftPips
 	} else {
-		return -1
+		return math.MaxInt8
 	}
 }
 
-func (t *Tile) isSameAs(other *Tile) bool {
+func (t Tile) isSameAs(other Tile) bool {
 	return t.hasPips(other.leftPips) && t.hasPips(other.rightPips)
 }
 
-func (t *Tile) flip() {
+func (t Tile) flip() {
 	t.leftPips, t.rightPips = t.rightPips, t.leftPips
 }
 
-func (t *Tile) String() string {
+func (t Tile) String() string {
 	return fmt.Sprintf("[%d %d]", t.leftPips, t.rightPips)
 }

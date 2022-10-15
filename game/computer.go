@@ -1,7 +1,6 @@
 package game
 
 import (
-	"log"
 	"math/rand"
 )
 
@@ -12,17 +11,17 @@ func (p Computer) name() string {
 	return "Alpha-Dominator"
 }
 
-func (p Computer) move(moveNumber int, hand []*Tile, train []*Tile, pileSize int) Move {
-	left := -1
-	right := -1
-	if len(train) != 0 {
-		left = train[0].leftPips
-		right = train[len(train)-1].rightPips
-	}
+func (p Computer) move(moveNumber uint16, hand []Tile, train []Tile, pileSize int) Move {
 	var bestTile *Tile = nil
 	var appendRight bool = false
+	var left int16 = -1
+	var right int16 = -1
+	if len(train) > 0 {
+		left = int16(train[0].leftPips)
+		right = int16(train[len(train)-1].rightPips)
+	}
 	// If at least half of pips are played more than 2 times, we can start analyze pips usage frequences
-	frequencyThresh := 3
+	var frequencyThresh byte = 3
 	enoughOccurenceData := false
 	pipsPlayedOften := 0
 	occurenceMap := p.occurenceMap(hand, train)
@@ -42,54 +41,53 @@ func (p Computer) move(moveNumber int, hand []*Tile, train []*Tile, pileSize int
 		// If occurence cannot help, then use greedy approach
 		bestTile, appendRight = p.bestPipSumTile(hand, train, left, right)
 	}
-	if bestTile == nil {
-		log.Printf("\nTRAIN:%v\nMY HAND: %v.\nEnough occurence data: %v,\n Occurence map: %v", train, hand, enoughOccurenceData, occurenceMap)
-	}
-	return Move{bestTile, appendRight}
+	bestTile, appendRight = p.bestPipSumTile(hand, train, left, right)
+	return Move{*bestTile, appendRight}
 }
 
 func (p Computer) selectToPick(pileSize int) int {
 	return rand.Intn(pileSize)
 }
 
-func (p Computer) onHandGrown(hand []*Tile, newTile *Tile) {
+func (p Computer) onHandGrown(hand []Tile, newTile Tile) {
 }
 
-func (p Computer) onOpponentMoved(move *Move, train []*Tile) {
+func (p Computer) onOpponentMoved(move Move, train []Tile) {
 }
 
 func (p Computer) onOpponentHandGrown() {
 }
 
-func (p Computer) onVictory(looserScore int, playerScore int) {
+func (p Computer) onVictory(looserScore uint16, playerScore uint16) {
 }
 
-func (p Computer) onLoss(winnerScore int, playerScore int) {
+func (p Computer) onLoss(winnerScore uint16, playerScore uint16) {
 }
 
-func (p Computer) onDraw(drawScore int) {
+func (p Computer) onDraw(drawScore uint16) {
 }
 
-func (p Computer) bestPipSumTile(hand []*Tile, train []*Tile, left int, right int) (*Tile, bool) {
+func (p Computer) bestPipSumTile(hand []Tile, train []Tile, left int16, right int16) (*Tile, bool) {
 	matchAny := left < 0 || right < 0
-	maxSum := -1
+	var maxSum byte = 0
 	appendRight := false
 	var maxTile *Tile = nil
-	for _, v := range hand {
-		if matchAny || (v.hasPips(left) || v.hasPips(right)) {
-			sum := v.leftPips + v.rightPips
-			if sum > maxSum {
+	for _, tile := range hand {
+		tile := tile
+		if matchAny || tile.hasPips(byte(left)) || tile.hasPips(byte(right)) {
+			var sum byte = tile.leftPips + tile.rightPips
+			if sum >= maxSum {
 				maxSum = sum
-				maxTile = v
-				appendRight = matchAny || v.hasPips(right)
+				maxTile = &tile
+				appendRight = matchAny || tile.hasPips(byte(right))
 			}
 		}
 	}
 	return maxTile, appendRight
 }
 
-func (p Computer) occurenceMap(hand []*Tile, train []*Tile) map[int]int {
-	occurence := make(map[int]int, maxPips+1)
+func (p Computer) occurenceMap(hand []Tile, train []Tile) map[byte]byte {
+	occurence := make(map[byte]byte, maxPips+1)
 	for _, v := range append(hand, train...) {
 		if v.isDoublet() {
 			occurence[v.leftPips]++
@@ -101,24 +99,29 @@ func (p Computer) occurenceMap(hand []*Tile, train []*Tile) map[int]int {
 	return occurence
 }
 
-func (p Computer) bestOccurenceTile(occurence map[int]int, hand []*Tile, left int, right int) (*Tile, bool) {
+func (p Computer) bestOccurenceTile(occurence map[byte]byte, hand []Tile, leftEnd int16, rightEnd int16) (*Tile, bool) {
+	if leftEnd < 0 || rightEnd < 0 {
+		return nil, false
+	}
+	var left, right byte = byte(leftEnd), byte(rightEnd)
 	trainScore := occurence[left] + occurence[right]
 	maxScore := trainScore
 	var bestAttackTile *Tile = nil
 	appendRight := false
 	for _, tile := range hand {
+		tile := tile
 		if tile.hasPips(left) {
 			newScore := trainScore - occurence[left] + occurence[tile.pipsOtherThan(left)]
 			if newScore >= maxScore {
 				maxScore = newScore
-				bestAttackTile = tile
+				bestAttackTile = &tile
 				appendRight = false
 			}
 		} else if tile.hasPips(right) {
 			newScore := trainScore - occurence[right] + occurence[tile.pipsOtherThan(right)]
 			if newScore >= maxScore {
 				maxScore = newScore
-				bestAttackTile = tile
+				bestAttackTile = &tile
 				appendRight = true
 			}
 		}
